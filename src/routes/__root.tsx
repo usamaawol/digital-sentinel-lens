@@ -12,7 +12,10 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/context/auth-context";
+import { ThemeProvider } from "@/context/theme-context";
 import { Toaster } from "@/components/ui/sonner";
+
+const themeInitScript = `(function(){try{var t=localStorage.getItem('pg-theme')||'dark';if(t==='dark')document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');}catch(e){}})();`;
 
 function NotFoundComponent() {
   return (
