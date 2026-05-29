@@ -1,8 +1,20 @@
 /**
- * Auth service abstraction. Mock implementation backed by localStorage.
- * Swap internals for Firebase Auth (signInWithEmailAndPassword, etc.) when
- * Firebase is wired up — the public API stays identical.
+ * Auth service backed by Firebase Auth.
+ * Public API is unchanged — the rest of the app uses the same methods.
  */
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut as fbSignOut,
+  updateProfile,
+  updatePassword as fbUpdatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  type User as FbUser,
+} from "firebase/auth";
+import { firebaseAuth } from "./config";
 
 export interface AuthUser {
   uid: string;
@@ -12,110 +24,97 @@ export interface AuthUser {
   lastLogin: string;
 }
 
-const STORAGE_KEY = "pg_auth_user";
-const USERS_KEY = "pg_auth_users";
-
-type StoredUser = AuthUser & { password: string };
-
-function readUsers(): StoredUser[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-  } catch {
-    return [];
-  }
+function toAuthUser(u: FbUser): AuthUser {
+  return {
+    uid: u.uid,
+    email: u.email ?? "",
+    displayName: u.displayName ?? (u.email ? u.email.split("@")[0] : "User"),
+    createdAt: u.metadata.creationTime ?? new Date().toISOString(),
+    lastLogin: u.metadata.lastSignInTime ?? new Date().toISOString(),
+  };
 }
 
-function writeUsers(users: StoredUser[]) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+function friendlyError(e: unknown): Error {
+  const code = (e as { code?: string })?.code ?? "";
+  const map: Record<string, string> = {
+    "auth/email-already-in-use": "An account with that email already exists.",
+    "auth/invalid-email": "That email address is invalid.",
+    "auth/weak-password": "Password must be at least 6 characters.",
+    "auth/invalid-credential": "Invalid email or password.",
+    "auth/wrong-password": "Invalid email or password.",
+    "auth/user-not-found": "Invalid email or password.",
+    "auth/too-many-requests": "Too many attempts. Try again later.",
+    "auth/network-request-failed": "Network error. Check your connection.",
+  };
+  return new Error(map[code] ?? (e as Error)?.message ?? "Authentication error.");
+}
+
+let currentUser: AuthUser | null = null;
+const listeners = new Set<() => void>();
+
+if (typeof window !== "undefined") {
+  onAuthStateChanged(firebaseAuth, (u) => {
+    currentUser = u ? toAuthUser(u) : null;
+    listeners.forEach((l) => l());
+  });
 }
 
 export const authService = {
   getCurrentUser(): AuthUser | null {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as AuthUser) : null;
-    } catch {
-      return null;
-    }
+    const u = firebaseAuth.currentUser;
+    return u ? toAuthUser(u) : currentUser;
   },
 
   async signUp(email: string, password: string, displayName: string): Promise<AuthUser> {
-    await delay(400);
-    const users = readUsers();
-    if (users.find((u) => u.email === email)) {
-      throw new Error("An account with that email already exists.");
+    try {
+      const cred = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+      if (displayName) await updateProfile(cred.user, { displayName });
+      return toAuthUser(cred.user);
+    } catch (e) {
+      throw friendlyError(e);
     }
-    const now = new Date().toISOString();
-    const user: StoredUser = {
-      uid: crypto.randomUUID(),
-      email,
-      displayName,
-      password,
-      createdAt: now,
-      lastLogin: now,
-    };
-    users.push(user);
-    writeUsers(users);
-    const { password: _pw, ...publicUser } = user;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(publicUser));
-    notify();
-    return publicUser;
   },
 
   async signIn(email: string, password: string): Promise<AuthUser> {
-    await delay(400);
-    const users = readUsers();
-    const user = users.find((u) => u.email === email && u.password === password);
-    if (!user) throw new Error("Invalid email or password.");
-    user.lastLogin = new Date().toISOString();
-    writeUsers(users);
-    const { password: _pw, ...publicUser } = user;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(publicUser));
-    notify();
-    return publicUser;
+    try {
+      const cred = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      return toAuthUser(cred.user);
+    } catch (e) {
+      throw friendlyError(e);
+    }
   },
 
   async signOut(): Promise<void> {
-    await delay(150);
-    localStorage.removeItem(STORAGE_KEY);
-    notify();
+    await fbSignOut(firebaseAuth);
   },
 
   async resetPassword(email: string): Promise<void> {
-    await delay(400);
-    // Mock: in real Firebase, sendPasswordResetEmail(auth, email)
-    const users = readUsers();
-    if (!users.find((u) => u.email === email)) {
-      // Don't reveal existence — but for the mock, surface a helpful message.
-      return;
+    try {
+      await sendPasswordResetEmail(firebaseAuth, email);
+    } catch (e) {
+      // Don't reveal whether the email exists.
+      const code = (e as { code?: string })?.code;
+      if (code === "auth/user-not-found") return;
+      throw friendlyError(e);
     }
   },
 
   async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await delay(300);
-    const current = this.getCurrentUser();
-    if (!current) throw new Error("Not signed in.");
-    const users = readUsers();
-    const idx = users.findIndex((u) => u.uid === current.uid);
-    if (idx === -1) throw new Error("User not found.");
-    if (users[idx].password !== currentPassword) throw new Error("Current password is incorrect.");
-    users[idx].password = newPassword;
-    writeUsers(users);
+    const user = firebaseAuth.currentUser;
+    if (!user || !user.email) throw new Error("Not signed in.");
+    try {
+      const cred = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, cred);
+      await fbUpdatePassword(user, newPassword);
+    } catch (e) {
+      throw friendlyError(e);
+    }
   },
 
   subscribe(listener: () => void): () => void {
     listeners.add(listener);
-    return () => listeners.delete(listener);
+    return () => {
+      listeners.delete(listener);
+    };
   },
 };
-
-const listeners = new Set<() => void>();
-function notify() {
-  listeners.forEach((l) => l());
-}
-
-function delay(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
