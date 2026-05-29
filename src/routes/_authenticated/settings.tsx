@@ -7,8 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/context/auth-context";
 import { authService } from "@/lib/firebase/auth.service";
+import { useTheme } from "@/context/theme-context";
 import { toast } from "sonner";
-import { User, KeyRound, Bell, Palette, Shield } from "lucide-react";
+import { User, KeyRound, Bell, Palette, Shield, Moon, Sun } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — Privacy Guard AI" }] }),
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [busy, setBusy] = useState(false);
@@ -98,7 +100,28 @@ function SettingsPage() {
       </Section>
 
       <Section icon={Palette} title="Appearance">
-        <SettingsRow label="Dark theme" hint="Privacy Guard is dark-first" defaultChecked />
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium">Theme</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Dark is the default. Switch to light any time.</div>
+          </div>
+          <div className="inline-flex rounded-lg border border-border p-1 bg-muted/30">
+            <button
+              type="button"
+              onClick={() => setTheme("light")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors ${theme === "light" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Sun className="h-3.5 w-3.5" /> Light
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme("dark")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors ${theme === "dark" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Moon className="h-3.5 w-3.5" /> Dark
+            </button>
+          </div>
+        </div>
       </Section>
 
       <Section icon={Shield} title="Security preferences">
