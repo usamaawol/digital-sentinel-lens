@@ -7,8 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/context/auth-context";
 import { authService } from "@/lib/firebase/auth.service";
+import { useTheme } from "@/context/theme-context";
 import { toast } from "sonner";
-import { User, KeyRound, Bell, Palette, Shield } from "lucide-react";
+import { User, KeyRound, Bell, Palette, Shield, Moon, Sun } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — Privacy Guard AI" }] }),
