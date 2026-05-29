@@ -18,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [busy, setBusy] = useState(false);
