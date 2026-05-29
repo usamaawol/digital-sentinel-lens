@@ -22,7 +22,7 @@ function AssistantPage() {
     {
       role: "assistant",
       content:
-        "Hi! I'm your Privacy Guard assistant. Ask me about an app, a permission, or paste a privacy policy snippet. (Heads up: live AI responses activate once OpenRouter is connected — for now I'll respond with helpful mock answers.)",
+        "Hi! I'm your Privacy Guard assistant. Ask me about an app, a permission, or paste a privacy policy snippet — I'll explain it in plain English.",
     },
   ]);
   const [input, setInput] = useState("");
