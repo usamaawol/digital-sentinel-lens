@@ -42,6 +42,9 @@ function AssistantPage() {
     try {
       const reply = await aiService.chat(next);
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong contacting the AI.";
+      setMessages((m) => [...m, { role: "assistant", content: `⚠️ ${msg}` }]);
     } finally {
       setBusy(false);
     }
