@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         PERMISSIONS REQUIRED BY PRIVACY GUARD AI
+         ─────────────────────────────────────────────────────────────────────
+
+         QUERY_ALL_PACKAGES  — Feature 1: Installed Application Scanner
+             Required to enumerate all installed apps on Android 11+.
+             Must be declared in the manifest; Google Play requires justification.
+
+         PACKAGE_USAGE_STATS — Feature 6: Weekly Privacy Reports / Usage data
+             Requires user to grant via Settings > Apps > Special app access.
+             Used by UsageStatsManager to read per-app usage events.
+
+         POST_NOTIFICATIONS  — Feature 11: Security Notifications
+             Required on Android 13+ to show push notifications.
+
+         RECEIVE_BOOT_COMPLETED — Feature 10: Background Scanning
+             Allows WorkManager to reschedule jobs after device reboot.
+
+         INTERNET             — Feature 7: AI Integration Layer
+             Required for OpenRouter API calls.
+
+         ACCESS_NETWORK_STATE — Future: Network traffic analysis
+             Allows checking connectivity before making network requests.
+
+         FOREGROUND_SERVICE   — Feature 10: Background Scanning
+             Required if scanner runs as a foreground service.
+
+         FOREGROUND_SERVICE_DATA_SYNC — Android 14+ foreground service type.
+    ─────────────────────────────────────────────────────────────────────── -->
+
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <application
+        android:name=".PrivacyGuardApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PrivacyGuardAI"
+        tools:targetApi="31">
+
+        <!-- Main entry point -->
+        <activity
+            android:name=".presentation.MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.PrivacyGuardAI.SplashScreen"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Feature 11: Security Notifications — Firebase Cloud Messaging -->
+        <service
+            android:name=".data.notification.PrivacyGuardMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Feature 10: Background Scanning — WorkManager initialization -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup" />
+        </provider>
+
+        <!-- Feature 1: New app install detection broadcast receiver -->
+        <receiver
+            android:name=".data.receiver.PackageChangeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_REMOVED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Boot completed receiver to reschedule WorkManager jobs -->
+        <receiver
+            android:name=".data.receiver.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>
