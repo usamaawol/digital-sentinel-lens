@@ -1,0 +1,28 @@
+Auto-merging .gitignore
+CONFLICT (add/add): Merge conflict in .gitignore
+Auto-merging src/components/app-sidebar.tsx
+CONFLICT (add/add): Merge conflict in src/components/app-sidebar.tsx
+Auto-merging src/context/auth-context.tsx
+CONFLICT (add/add): Merge conflict in src/context/auth-context.tsx
+Auto-merging src/lib/ai/ai.service.ts
+CONFLICT (add/add): Merge conflict in src/lib/ai/ai.service.ts
+Auto-merging src/lib/firebase/firestore.service.ts
+CONFLICT (add/add): Merge conflict in src/lib/firebase/firestore.service.ts
+Auto-merging src/routeTree.gen.ts
+CONFLICT (add/add): Merge conflict in src/routeTree.gen.ts
+Auto-merging src/routes/__root.tsx
+CONFLICT (add/add): Merge conflict in src/routes/__root.tsx
+Auto-merging src/routes/_authenticated/apps.$appId.tsx
+CONFLICT (add/add): Merge conflict in src/routes/_authenticated/apps.$appId.tsx
+Auto-merging src/routes/_authenticated/apps.tsx
+CONFLICT (add/add): Merge conflict in src/routes/_authenticated/apps.tsx
+Auto-merging src/routes/_authenticated/dashboard.tsx
+CONFLICT (add/add): Merge conflict in src/routes/_authenticated/dashboard.tsx
+Auto-merging src/routes/_authenticated/notifications.tsx
+CONFLICT (add/add): Merge conflict in src/routes/_authenticated/notifications.tsx
+Auto-merging src/routes/_authenticated/policy-analyzer.tsx
+CONFLICT (add/add): Merge conflict in src/routes/_authenticated/policy-analyzer.tsx
+Auto-merging src/routes/_authenticated/settings.tsx
+CONFLICT (add/add): Merge conflict in src/routes/_authenticated/settings.tsx
+Automatic merge failed; fix conflicts and then commit the result.
+exit:1
