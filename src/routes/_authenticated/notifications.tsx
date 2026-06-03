@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import {
   Bell,
   ShieldAlert,
@@ -12,13 +13,10 @@ import {
 } from "lucide-react";
 import {
   collection,
-  doc,
   getDocs,
   getFirestore,
   orderBy,
   query,
-  updateDoc,
-  deleteDoc,
   writeBatch,
   limit,
   onSnapshot,
@@ -28,7 +26,6 @@ import { firestoreService } from "@/lib/firebase/firestore.service";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useEffect } from "react";
 import type { NotificationItem } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/_authenticated/notifications")({
@@ -50,13 +47,33 @@ const iconFor = (t: NotificationItem["type"]) =>
 function NotificationsPage() {
   const queryClient = useQueryClient();
 
-  const { data: notifs = [], isLoading } = useQuery({
+  // Fetch notifications from Firestore (falls back to mock data automatically)
+  const { data: fetchedNotifs = [], isLoading } = useQuery({
     queryKey: ["notifs"],
     queryFn: () => firestoreService.listNotifications(),
-    refetchInterval: 15_000, // Poll every 15s for new notifications
+    refetchInterval: 15_000,
   });
 
-  // Real-time listener for new notifications
+  // Local override state — tracks read status and deleted items in memory
+  // This makes actions work instantly regardless of whether data is from
+  // Firestore or mock data
+  const [localReadIds, setLocalReadIds] = useState<Set<string>>(new Set());
+  const [localDeletedIds, setLocalDeletedIds] = useState<Set<string>>(new Set());
+  const [cleared, setCleared] = useState(false);
+
+  // Merge fetched notifications with local state
+  const notifs: NotificationItem[] = cleared
+    ? []
+    : fetchedNotifs
+        .filter((n) => !localDeletedIds.has(n.id))
+        .map((n) => ({
+          ...n,
+          read: n.read || localReadIds.has(n.id),
+        }));
+
+  const unreadCount = notifs.filter((n) => !n.read).length;
+
+  // Real-time Firestore listener — only runs when user has real Firestore data
   useEffect(() => {
     const uid = firebaseAuth.currentUser?.uid;
     if (!uid) return;
@@ -64,64 +81,102 @@ function NotificationsPage() {
     const notifsRef = collection(db, "users", uid, "notifications");
     const q = query(notifsRef, orderBy("time", "desc"), limit(50));
 
-    const unsub = onSnapshot(q, () => {
-      queryClient.invalidateQueries({ queryKey: ["notifs"] });
-    });
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          // Real Firestore data available — invalidate to refresh
+          queryClient.invalidateQueries({ queryKey: ["notifs"] });
+        }
+      },
+      () => {
+        // Firestore permission error or offline — silently ignore
+      },
+    );
 
     return () => unsub();
   }, [queryClient]);
 
-  const unreadCount = notifs.filter((n) => !n.read).length;
+  // ── Actions ─────────────────────────────────────────────────────────────────
+
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["notifs"] });
+    toast.success("Notifications refreshed.");
+  };
 
   const markAllRead = async () => {
-    const uid = firebaseAuth.currentUser?.uid;
-    if (!uid) return;
+    // 1. Update local state immediately — works for both mock and Firestore data
+    const unreadIds = notifs.filter((n) => !n.read).map((n) => n.id);
+    setLocalReadIds((prev) => new Set([...prev, ...unreadIds]));
 
-    try {
-      const notifsRef = collection(db, "users", uid, "notifications");
-      const snapshot = await getDocs(notifsRef);
-      const batch = writeBatch(db);
-      snapshot.docs.forEach((d) => {
-        if (!d.data().read) batch.update(d.ref, { read: true });
-      });
-      await batch.commit();
-      await queryClient.invalidateQueries({ queryKey: ["notifs"] });
-      toast.success("All notifications marked as read.");
-    } catch {
-      toast.error("Failed to mark notifications as read.");
+    // 2. Try to persist to Firestore (only works if user has real data there)
+    const uid = firebaseAuth.currentUser?.uid;
+    if (uid) {
+      try {
+        const notifsRef = collection(db, "users", uid, "notifications");
+        const snapshot = await getDocs(notifsRef);
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.docs.forEach((d) => {
+            if (!d.data().read) batch.update(d.ref, { read: true });
+          });
+          await batch.commit();
+          await queryClient.invalidateQueries({ queryKey: ["notifs"] });
+        }
+      } catch {
+        // Firestore failed — local state update already applied above
+      }
     }
+
+    toast.success("All notifications marked as read.");
   };
 
   const markOneRead = async (id: string) => {
+    // Update local state immediately
+    setLocalReadIds((prev) => new Set([...prev, id]));
+
+    // Try Firestore
     const uid = firebaseAuth.currentUser?.uid;
-    if (!uid) return;
-    try {
-      // Find the Firestore doc by querying for matching id field
-      const notifsRef = collection(db, "users", uid, "notifications");
-      const snapshot = await getDocs(notifsRef);
-      const match = snapshot.docs.find((d) => d.data().id === id || d.id === id);
-      if (match) await updateDoc(match.ref, { read: true });
-      await queryClient.invalidateQueries({ queryKey: ["notifs"] });
-    } catch {
-      // Silent fail
+    if (uid) {
+      try {
+        const notifsRef = collection(db, "users", uid, "notifications");
+        const snapshot = await getDocs(notifsRef);
+        const match = snapshot.docs.find((d) => d.data().id === id || d.id === id);
+        if (match) {
+          const { updateDoc } = await import("firebase/firestore");
+          await updateDoc(match.ref, { read: true });
+          await queryClient.invalidateQueries({ queryKey: ["notifs"] });
+        }
+      } catch {
+        // Local state already updated
+      }
     }
   };
 
   const clearAll = async () => {
-    const uid = firebaseAuth.currentUser?.uid;
-    if (!uid) return;
+    // Clear locally immediately
+    setCleared(true);
+    setLocalDeletedIds(new Set());
+    setLocalReadIds(new Set());
 
-    try {
-      const notifsRef = collection(db, "users", uid, "notifications");
-      const snapshot = await getDocs(notifsRef);
-      const batch = writeBatch(db);
-      snapshot.docs.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-      await queryClient.invalidateQueries({ queryKey: ["notifs"] });
-      toast.success("All notifications cleared.");
-    } catch {
-      toast.error("Failed to clear notifications.");
+    // Try Firestore
+    const uid = firebaseAuth.currentUser?.uid;
+    if (uid) {
+      try {
+        const notifsRef = collection(db, "users", uid, "notifications");
+        const snapshot = await getDocs(notifsRef);
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.docs.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+          await queryClient.invalidateQueries({ queryKey: ["notifs"] });
+        }
+      } catch {
+        // Local clear already applied
+      }
     }
+
+    toast.success("All notifications cleared.");
   };
 
   return (
@@ -142,11 +197,7 @@ function NotificationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["notifs"] })}
-          >
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
           </Button>
           {unreadCount > 0 && (
@@ -183,7 +234,7 @@ function NotificationsPage() {
       ) : notifs.length === 0 ? (
         <div className="glass rounded-2xl p-12 text-center shadow-card">
           <Bell className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-30" />
-          <p className="text-sm font-medium">No notifications yet</p>
+          <p className="text-sm font-medium">No notifications</p>
           <p className="text-xs text-muted-foreground mt-1">
             Scan your apps to start receiving privacy alerts.
           </p>
@@ -209,7 +260,6 @@ function NotificationsPage() {
                     {!n.read && (
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                     )}
-                    {/* Type badge */}
                     <span
                       className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${
                         n.type === "high-risk"

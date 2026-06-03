@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState, useEffect } from "react";
-import { Sparkles, Send, ShieldQuestion } from "lucide-react";
+import { Sparkles, Send, ShieldQuestion, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { aiService, type ChatMessage } from "@/lib/ai/ai.service";
@@ -27,6 +27,7 @@ function AssistantPage() {
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [aiError, setAiError] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,9 +42,32 @@ function AssistantPage() {
     setBusy(true);
     try {
       const reply = await aiService.chat(next);
+
+      // Detect if the reply is an HTML error page (server function failed)
+      const isHtmlError = reply.trim().startsWith("<!") || reply.trim().startsWith("<html");
+      if (isHtmlError) {
+        setAiError(true);
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content:
+              "⚠️ The AI server is not reachable right now. Make sure OPENROUTER_API_KEY is set in your environment variables and redeploy.",
+          },
+        ]);
+        return;
+      }
+
+      setAiError(false);
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong contacting the AI.";
+      const raw = err instanceof Error ? err.message : String(err);
+      // Clean up HTML error messages from server errors
+      const isHtml = raw.includes("<!doctype") || raw.includes("<html") || raw.includes("<head");
+      const msg = isHtml
+        ? "The AI server returned an error. Check that OPENROUTER_API_KEY is configured correctly."
+        : raw || "Something went wrong contacting the AI.";
+      setAiError(true);
       setMessages((m) => [...m, { role: "assistant", content: `⚠️ ${msg}` }]);
     } finally {
       setBusy(false);
@@ -52,11 +76,22 @@ function AssistantPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Sparkles className="h-6 w-6 text-accent" /> AI Privacy Assistant
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Plain-English answers about your apps and privacy.</p>
+      <div className="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Sparkles className="h-6 w-6 text-accent" /> AI Privacy Assistant
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Plain-English answers about your apps and privacy.</p>
+        </div>
+        {aiError ? (
+          <div className="inline-flex items-center gap-1.5 text-[11px] rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-destructive">
+            <WifiOff className="h-3 w-3" /> AI offline — set OPENROUTER_API_KEY
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 text-[11px] rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-success">
+            <Sparkles className="h-3 w-3" /> Powered by OpenRouter
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-2xl flex-1 flex flex-col overflow-hidden shadow-card">
