@@ -20,7 +20,7 @@ async function callOpenRouter(messages: Array<{ role: string; content: string }>
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://privacy-guard.lovable.app",
+      "HTTP-Referer": "https://digital-sentinel-lens.vercel.app",
       "X-Title": "Privacy Guard AI",
     },
     body: JSON.stringify({
