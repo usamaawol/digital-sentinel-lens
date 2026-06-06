@@ -1,3 +1,0 @@
-From https://github.com/usamaawol/digital-sentinel-lens
- * [new branch]      main       -> origin/main
-exit:0

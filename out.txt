@@ -1,0 +1,22 @@
+npm notice New minor version of npm available! 11.14.1 -> 11.16.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.16.0
+npm notice To update run: npm install -g npm@11.16.0
+npm notice
+BUILD_EXIT:0
+---
+dist/config.json
+dist/nitro.json
+dist/server/.vc-config.json
+dist/server/package.json
+dist/server/node_modules/tslib/modules/package.json
+dist/server/node_modules/tslib/package.json
+dist/client/manifest.json
+---
+total 24
+drwxr-xr-x  4 usama usama 4096 Jun  6 17:04 .
+drwxrwxr-x 12 usama usama 4096 Jun  6 17:05 ..
+drwxr-xr-x  4 usama usama 4096 Jun  6 17:04 client
+-rw-r--r--  1 usama usama  366 Jun  6 17:04 config.json
+-rw-r--r--  1 usama usama  579 Jun  6 17:04 nitro.json
+drwxr-xr-x  6 usama usama 4096 Jun  6 17:04 server
+exit:0

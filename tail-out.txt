@@ -1,0 +1,20 @@
+dist/server/_libs/seroval.mjs                                        48.40 kB
+dist/server/_libs/date-fns.mjs                                       50.20 kB
+dist/server/_libs/sonner.mjs                                         56.10 kB
+dist/server/_ssr/server-BQeBvh7z.mjs                                 64.85 kB
+dist/server/_libs/tanstack__query-core.mjs                           71.33 kB
+dist/server/_libs/tailwind-merge.mjs                                 99.21 kB
+dist/server/_libs/zod.mjs                                           105.90 kB
+dist/server/_libs/lodash.mjs                                        114.30 kB
+dist/server/_libs/tanstack__router-core.mjs                         171.47 kB
+dist/server/_libs/firebase__auth.mjs                                186.73 kB
+dist/server/_libs/protobufjs.mjs                                    207.97 kB
+dist/server/_libs/@grpc/grpc-js.mjs                                 404.00 kB
+dist/server/_libs/react-dom.mjs                                     509.17 kB
+dist/server/_libs/recharts.mjs                                      559.40 kB
+dist/server/_libs/firebase__firestore.mjs                           926.31 kB
+✓ built in 11.46s
+ℹ Generated dist/nitro.json
+
+[nitro] ✔ You can preview this build using npx vite preview
+[nitro] ✔ You can deploy this build using npx nitro deploy --prebuilt

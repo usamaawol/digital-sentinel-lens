@@ -1,0 +1,2 @@
+  "main": "./dist/index.cjs",
+exit:0
