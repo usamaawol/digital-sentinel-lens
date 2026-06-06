@@ -40,3 +40,7 @@ android/app/google-services.json
 *.njsproj
 *.sln
 *.sw?
+
+# Temp debug output files
+*.txt
+!README.txt
